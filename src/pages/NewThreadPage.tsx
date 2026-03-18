@@ -1,0 +1,261 @@
+import { useState, useEffect } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { useMutation } from '@tanstack/react-query'
+import { createThread } from '../api/threads'
+import { useTurnstileStore } from '../stores/turnstileStore'
+import { useThreads } from '../hooks/useThreads'
+import { TurnstileRequiredError, ApiError } from '../api/client'
+import { env } from '../config/env'
+import { getThreadDraft, saveThreadDraft, clearThreadDraft } from '../utils/draftCache'
+import { useSettingsStore } from '../stores/settingsStore'
+
+export default function NewThreadPage() {
+  const { boardId } = useParams<{ boardId: string }>()
+  const navigate = useNavigate()
+  const [title, setTitle] = useState('')
+  const [content, setContent] = useState('')
+  const [showPreview, setShowPreview] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [isTurnstileError, setIsTurnstileError] = useState(false)
+  const { data: boardData } = useThreads(boardId)
+  const turnstileValid = useTurnstileStore((s) => s.isValid())
+  const setTurnstileSession = useTurnstileStore((s) => s.setSession)
+  const defaultPosterName = useSettingsStore((s) => s.defaultPosterName)
+  const defaultSubInfo = useSettingsStore((s) => s.defaultSubInfo)
+
+  const board = boardData?.data.board
+
+  // 下書き復元
+  useEffect(() => {
+    if (!boardId) return
+    const draft = getThreadDraft(boardId)
+    if (draft) {
+      setTitle(draft.title)
+      setContent(draft.content)
+    }
+  }, [boardId])
+
+  // 下書き自動保存
+  useEffect(() => {
+    if (!boardId) return
+    if (title.trim() || content.trim()) {
+      saveThreadDraft(boardId, title, content, env.threadCacheGen)
+    }
+  }, [title, content, boardId])
+
+  const mutation = useMutation({
+    mutationFn: () => createThread(boardId!, {
+      title,
+      content,
+      ...(defaultPosterName.trim() ? { posterName: defaultPosterName.trim() } : {}),
+      ...(defaultSubInfo.trim() ? { posterSubInfo: defaultSubInfo.trim() } : {}),
+    }),
+    onSuccess: (res) => {
+      clearThreadDraft(boardId!)
+      navigate(`/${boardId}/${res.data.thread.id}`)
+    },
+    onError: (err) => {
+      if (err instanceof TurnstileRequiredError) {
+        setIsTurnstileError(true)
+        setError('turnstile')
+      } else {
+        setIsTurnstileError(false)
+        if (err instanceof ApiError) {
+          setError(err.message)
+        } else {
+          setError('スレッドの作成に失敗しました')
+        }
+      }
+    },
+  })
+
+  function insertTag(before: string, after: string) {
+    setContent(content + before + after)
+  }
+
+  async function handleSubmit() {
+    if (!title.trim() || !content.trim()) return
+    setError(null)
+    setIsTurnstileError(false)
+
+    if (env.disableTurnstile && !turnstileValid) {
+      setTurnstileSession('dev-turnstile-disabled')
+    }
+
+    mutation.mutate()
+  }
+
+  const turnstileReturnTo = encodeURIComponent(window.location.href)
+
+  return (
+    <div className="relative flex h-screen min-h-screen w-full flex-col overflow-x-hidden bg-c-base text-slate-700 dark:text-slate-200">
+      {/* ナビゲーションヘッダー */}
+      <header className="flex items-center justify-between border-b border-c-border bg-c-surface/80 backdrop-blur-md px-6 py-4 sticky top-0 z-20">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-600/20">
+            <span className="material-symbols-outlined">edit_square</span>
+          </div>
+          <div className="flex flex-col">
+            <h2 className="text-slate-900 dark:text-white text-xl font-bold leading-tight tracking-tight">
+              新規スレッド作成
+            </h2>
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+              {board ? `${board.name}板` : boardId}
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => navigate(`/${boardId}`)}
+            className="flex min-w-[84px] cursor-pointer items-center justify-center rounded-xl h-10 px-6 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-sm font-bold"
+          >
+            キャンセル
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={mutation.isPending || !title.trim() || !content.trim()}
+            className="flex min-w-[84px] cursor-pointer items-center justify-center rounded-xl h-10 px-6 bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-50 transition-colors text-sm font-bold shadow-lg shadow-blue-600/20"
+          >
+            {mutation.isPending ? '投稿中...' : '投稿する'}
+          </button>
+        </div>
+      </header>
+
+      <main className="flex-1 flex flex-col items-center py-8 px-4 overflow-y-auto custom-scrollbar">
+        <div className="w-full max-w-[800px] flex flex-col gap-8">
+          {error && (
+            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
+              {isTurnstileError && !env.disableTurnstile && env.turnstileTokenUrl ? (
+                <span>
+                  <a
+                    href={`${env.turnstileTokenUrl}?returnTo=${turnstileReturnTo}`}
+                    className="underline font-medium hover:text-red-300"
+                  >
+                    Turnstile
+                  </a>
+                  セッションが必要です
+                </span>
+              ) : (
+                error
+              )}
+            </div>
+          )}
+
+          {/* タイトル */}
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-bold text-slate-500 ml-1 uppercase tracking-widest">
+              スレッドのタイトル
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              maxLength={board?.maxThreadTitleLength ?? 200}
+              className="w-full bg-c-surface2 border border-c-border rounded-xl px-4 py-4 text-lg focus:outline-none focus:ring-2 focus:ring-blue-600/50 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 transition-all"
+              placeholder="スレッドのタイトルを入力してください..."
+            />
+          </div>
+
+          {/* エディター */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between px-1 mb-2">
+              <div className="flex gap-4">
+                <button
+                  type="button"
+                  onClick={() => insertTag('**', '**')}
+                  className="text-slate-500 hover:text-blue-500 transition-colors"
+                  title="太字"
+                >
+                  <span className="material-symbols-outlined">format_bold</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => insertTag('*', '*')}
+                  className="text-slate-500 hover:text-blue-500 transition-colors"
+                  title="斜体"
+                >
+                  <span className="material-symbols-outlined">format_italic</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => insertTag('`', '`')}
+                  className="text-slate-500 hover:text-blue-500 transition-colors"
+                  title="コード"
+                >
+                  <span className="material-symbols-outlined">code</span>
+                </button>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-bold text-slate-500 tracking-tighter">
+                  プレビュー表示
+                </span>
+                <label className="relative flex h-5 w-9 cursor-pointer items-center rounded-full bg-slate-200 dark:bg-slate-800 p-1 has-[:checked]:bg-blue-600">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    checked={showPreview}
+                    onChange={(e) => setShowPreview(e.target.checked)}
+                  />
+                  <div className="h-3 w-3 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-4" />
+                </label>
+              </div>
+            </div>
+
+            <div className="relative bg-c-surface2 border border-c-border rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-blue-600/50 transition-all">
+              {showPreview ? (
+                <div className="w-full min-h-[400px] p-6 text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-wrap text-base">
+                  {content || <span className="text-slate-400">プレビューがここに表示されます</span>}
+                </div>
+              ) : (
+                <textarea
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  maxLength={board?.defaultMaxPostLength ?? 2000}
+                  className="w-full min-h-[400px] bg-transparent border-none p-6 text-base focus:ring-0 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 resize-none leading-relaxed"
+                  placeholder="本文を入力してください... (Markdown形式が利用可能です。画像はURLを直接貼り付けてください)"
+                />
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 px-1 text-[10px] text-slate-500 uppercase tracking-tight">
+              <span className="material-symbols-outlined text-sm">info</span>
+              <span>画像は外部サービスのURLを貼り付けると自動的に展開されます</span>
+            </div>
+          </div>
+
+          {/* 注意事項 */}
+          <div className="p-6 rounded-xl border border-blue-500/10 bg-blue-500/5 flex items-start gap-4 mb-8">
+            <div className="p-2 bg-blue-600/20 rounded-lg text-blue-500 mt-1">
+              <span className="material-symbols-outlined">info</span>
+            </div>
+            <div className="flex flex-col gap-2">
+              <p className="text-slate-900 dark:text-white text-sm font-bold leading-tight">
+                匿名投稿に関する注意事項
+              </p>
+              <div className="text-slate-500 text-sm font-normal leading-relaxed space-y-1">
+                <p>・投稿は匿名で行われますが、サーバー側で自動的に識別用IDが生成されます。</p>
+                <p>・一度投稿した内容は、管理者に依頼しない限り削除・編集できない場合があります。</p>
+                <p>・氏名、電話番号、住所などの個人情報は絶対に入力しないでください。</p>
+                <p>・公序良俗に反する内容や、他者を誹謗中傷する投稿は制限の対象となります。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* モバイル用スティッキーボタン */}
+      <div className="lg:hidden sticky bottom-0 left-0 right-0 p-4 bg-c-base/90 backdrop-blur-sm border-t border-c-border">
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={mutation.isPending || !title.trim() || !content.trim()}
+          className="w-full flex cursor-pointer items-center justify-center rounded-xl h-12 bg-blue-600 text-white text-base font-bold shadow-lg shadow-blue-600/20 disabled:opacity-50"
+        >
+          {mutation.isPending ? '投稿中...' : '投稿する'}
+        </button>
+      </div>
+    </div>
+  )
+}
