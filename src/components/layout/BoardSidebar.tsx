@@ -2,10 +2,18 @@ import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useBoards } from '../../hooks/useBoards'
 import { useAuthStore } from '../../stores/authStore'
+import { useSettingsStore } from '../../stores/settingsStore'
 import LoginModal from '../auth/LoginModal'
 
+function readSidebarCookie(): boolean {
+  try {
+    const m = document.cookie.match(/bbs-sidebar-collapsed=([^;]*)/)
+    return m ? m[1] === 'true' : false
+  } catch { return false }
+}
+
 export default function BoardSidebar() {
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(() => readSidebarCookie())
   const [showLogin, setShowLogin] = useState(false)
   const { boardId } = useParams()
   const navigate = useNavigate()
@@ -13,8 +21,9 @@ export default function BoardSidebar() {
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn())
   const displayName = useAuthStore((s) => s.displayName)
   const clearSession = useAuthStore((s) => s.clearSession)
+  const hiddenBoardIds = useSettingsStore((s) => s.hiddenBoardIds)
 
-  const boards = data?.data ?? []
+  const boards = (data?.data ?? []).filter((b) => !hiddenBoardIds.includes(b.id))
 
   async function handleLogout() {
     clearSession()
@@ -29,8 +38,12 @@ export default function BoardSidebar() {
       >
         {/* ヘッダー */}
         <div className="p-6 border-b border-c-border flex items-center justify-between">
-          <div className="flex items-center gap-3 overflow-hidden">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex-shrink-0 flex items-center justify-center font-bold text-white text-sm">
+          <button
+            className="flex items-center gap-3 overflow-hidden hover:opacity-80 transition-opacity"
+            onClick={() => navigate('/')}
+            title="トップへ戻る"
+          >
+            <div className="w-8 h-8 bg-c-accent rounded-lg flex-shrink-0 flex items-center justify-center font-bold text-[var(--c-accent-text)] text-sm">
               AB
             </div>
             {!collapsed && (
@@ -38,9 +51,13 @@ export default function BoardSidebar() {
                 AnonBoard
               </h1>
             )}
-          </div>
+          </button>
           <button
-            onClick={() => setCollapsed(!collapsed)}
+            onClick={() => {
+              const next = !collapsed
+              document.cookie = `bbs-sidebar-collapsed=${next}; path=/; max-age=${365*24*3600}; SameSite=Strict`
+              setCollapsed(next)
+            }}
             className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 dark:text-slate-400 flex-shrink-0"
             title="サイドバーを切り替え"
           >
@@ -85,51 +102,55 @@ export default function BoardSidebar() {
           )}
         </nav>
 
-        {/* フッター（設定ボタン + ユーザー情報） */}
-        <div className="border-t border-c-border p-2">
-          <button
-            onClick={() => navigate('/settings')}
-            className="w-full flex items-center px-3 py-3 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors rounded-lg group"
-          >
-            <span className="material-symbols-outlined text-xl group-hover:text-blue-400 flex-shrink-0">
-              account_circle
-            </span>
-            {!collapsed && (
-              <span className="ml-3 text-sm whitespace-nowrap">アカウント設定</span>
-            )}
-          </button>
-        </div>
-
-        {!collapsed && (
-          <div className="p-4 border-t border-c-border">
-            {isLoggedIn ? (
-              <div className="flex items-center gap-3 mb-3 px-2">
-                <div className="w-8 h-8 rounded-full bg-blue-600/10 border border-blue-600/20 flex items-center justify-center text-blue-400 font-bold text-xs flex-shrink-0">
+        {/* フッター */}
+        <div className="border-t border-c-border p-2 space-y-1">
+          {isLoggedIn ? (
+            <>
+              <button
+                onClick={() => navigate('/settings')}
+                className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors rounded-lg"
+                title={displayName ?? 'ユーザー情報'}
+              >
+                <div className="w-7 h-7 rounded-full bg-blue-600/10 border border-blue-600/20 flex items-center justify-center text-blue-400 font-bold text-xs flex-shrink-0">
                   {displayName?.charAt(0).toUpperCase() ?? '?'}
                 </div>
-                <div className="flex flex-col min-w-0">
-                  <span className="text-sm font-semibold text-slate-900 dark:text-white truncate">{displayName}</span>
-                  <span className="text-[10px] text-slate-500">一般会員</span>
-                </div>
-              </div>
-            ) : null}
-            <button
-              onClick={isLoggedIn ? handleLogout : () => setShowLogin(true)}
-              className="w-full py-2 px-3 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2"
-            >
-              <span className="material-symbols-outlined text-sm">
-                {isLoggedIn ? 'logout' : 'login'}
-              </span>
-              {isLoggedIn ? 'ログアウト' : 'ログイン'}
-            </button>
-          </div>
-        )}
-
-        {!collapsed && (
-          <div className="p-4 border-t border-c-border text-[10px] text-slate-500 text-center">
-            © 2024 AnonBoard
-          </div>
-        )}
+                {!collapsed && (
+                  <div className="flex flex-col min-w-0 text-left">
+                    <span className="text-sm font-semibold text-slate-900 dark:text-white truncate">{displayName}</span>
+                    <span className="text-[10px] text-slate-500">一般会員</span>
+                  </div>
+                )}
+              </button>
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center px-3 py-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors rounded-lg"
+                title="ログアウト"
+              >
+                <span className="material-symbols-outlined text-xl flex-shrink-0">logout</span>
+                {!collapsed && <span className="ml-3 text-sm">ログアウト</span>}
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => navigate('/settings')}
+                className="w-full flex items-center px-3 py-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors rounded-lg"
+                title="アカウント設定"
+              >
+                <span className="material-symbols-outlined text-xl flex-shrink-0">account_circle</span>
+                {!collapsed && <span className="ml-3 text-sm">アカウント設定</span>}
+              </button>
+              <button
+                onClick={() => setShowLogin(true)}
+                className="w-full flex items-center px-3 py-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors rounded-lg"
+                title="ログイン"
+              >
+                <span className="material-symbols-outlined text-xl flex-shrink-0">login</span>
+                {!collapsed && <span className="ml-3 text-sm">ログイン</span>}
+              </button>
+            </>
+          )}
+        </div>
       </aside>
 
       {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}

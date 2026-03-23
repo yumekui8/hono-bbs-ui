@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { createThread } from '../api/threads'
@@ -7,14 +7,19 @@ import { useThreads } from '../hooks/useThreads'
 import { TurnstileRequiredError, ApiError } from '../api/client'
 import { env } from '../config/env'
 import { getThreadDraft, saveThreadDraft, clearThreadDraft } from '../utils/draftCache'
+import { hasTosAgreed, setTosAgreed } from '../utils/tosAgreement'
 import { useSettingsStore } from '../stores/settingsStore'
+import { recordPost } from '../utils/postHistory'
+import ImageUploadButton from '../components/ui/ImageUploadButton'
+import ContentPreview from '../components/ui/ContentPreview'
 
 export default function NewThreadPage() {
   const { boardId } = useParams<{ boardId: string }>()
   const navigate = useNavigate()
+  const contentRef = useRef<HTMLTextAreaElement>(null)
+  const [tosAgreed, setTosAgreedState] = useState(() => hasTosAgreed())
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
-  const [showPreview, setShowPreview] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isTurnstileError, setIsTurnstileError] = useState(false)
   const { data: boardData } = useThreads(boardId)
@@ -22,6 +27,7 @@ export default function NewThreadPage() {
   const setTurnstileSession = useTurnstileStore((s) => s.setSession)
   const defaultPosterName = useSettingsStore((s) => s.defaultPosterName)
   const defaultSubInfo = useSettingsStore((s) => s.defaultSubInfo)
+  const postHistoryMaxGenerations = useSettingsStore((s) => s.postHistoryMaxGenerations)
 
   const board = boardData?.data.board
 
@@ -51,6 +57,14 @@ export default function NewThreadPage() {
       ...(defaultSubInfo.trim() ? { posterSubInfo: defaultSubInfo.trim() } : {}),
     }),
     onSuccess: (res) => {
+      recordPost({
+        type: 'thread',
+        boardId: boardId!,
+        threadId: res.data.thread.id,
+        threadTitle: title,
+        contentSnippet: content.slice(0, 100),
+        postNumber: res.data.firstPost.postNumber,
+      }, postHistoryMaxGenerations)
       clearThreadDraft(boardId!)
       navigate(`/${boardId}/${res.data.thread.id}`)
     },
@@ -69,14 +83,35 @@ export default function NewThreadPage() {
     },
   })
 
-  function insertTag(before: string, after: string) {
-    setContent(content + before + after)
+  function handleContentInput(e: React.FormEvent<HTMLTextAreaElement>) {
+    const ta = e.currentTarget
+    ta.style.height = 'auto'
+    const maxH = Math.floor(window.innerHeight * 0.5)
+    ta.style.height = `${Math.min(ta.scrollHeight, maxH)}px`
+  }
+
+  function handleImageUploaded(url: string) {
+    const ta = contentRef.current
+    if (!ta) {
+      setContent((prev) => prev + (prev ? '\n' : '') + url)
+      return
+    }
+    const start = ta.selectionStart ?? ta.value.length
+    const end = ta.selectionEnd ?? ta.value.length
+    const newContent = ta.value.slice(0, start) + url + ta.value.slice(end)
+    setContent(newContent)
+    setTimeout(() => {
+      ta.focus()
+      ta.setSelectionRange(start + url.length, start + url.length)
+    }, 0)
   }
 
   async function handleSubmit() {
     if (!title.trim() || !content.trim()) return
     setError(null)
     setIsTurnstileError(false)
+    setTosAgreed()
+    setTosAgreedState(true)
 
     if (env.disableTurnstile && !turnstileValid) {
       setTurnstileSession('dev-turnstile-disabled')
@@ -92,7 +127,7 @@ export default function NewThreadPage() {
       {/* ナビゲーションヘッダー */}
       <header className="flex items-center justify-between border-b border-c-border bg-c-surface/80 backdrop-blur-md px-6 py-4 sticky top-0 z-20">
         <div className="flex items-center gap-4">
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-600/20">
+          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-c-accent text-[var(--c-accent-text)] shadow-lg">
             <span className="material-symbols-outlined">edit_square</span>
           </div>
           <div className="flex flex-col">
@@ -104,22 +139,37 @@ export default function NewThreadPage() {
             </p>
           </div>
         </div>
-        <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={() => navigate(`/${boardId}`)}
-            className="flex min-w-[84px] cursor-pointer items-center justify-center rounded-xl h-10 px-6 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-sm font-bold"
-          >
-            キャンセル
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={mutation.isPending || !title.trim() || !content.trim()}
-            className="flex min-w-[84px] cursor-pointer items-center justify-center rounded-xl h-10 px-6 bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-50 transition-colors text-sm font-bold shadow-lg shadow-blue-600/20"
-          >
-            {mutation.isPending ? '投稿中...' : '投稿する'}
-          </button>
+        <div className="flex flex-col items-end gap-1.5">
+          {!tosAgreed && (
+            <p className="text-[10px] text-slate-400">
+              投稿することで
+              <button
+                type="button"
+                className="underline hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                onClick={() => navigate('/settings?tab=terms')}
+              >
+                利用規約
+              </button>
+              に同意したことになります
+            </p>
+          )}
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => navigate(`/${boardId}`)}
+              className="flex min-w-[84px] cursor-pointer items-center justify-center rounded-xl h-10 px-6 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-sm font-bold"
+            >
+              キャンセル
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={mutation.isPending || !title.trim() || !content.trim()}
+              className="flex min-w-[84px] cursor-pointer items-center justify-center rounded-xl h-10 px-6 bg-c-accent text-[var(--c-accent-text)] hover:opacity-90 disabled:opacity-50 transition-colors text-sm font-bold shadow-lg"
+            >
+              {mutation.isPending ? '投稿中...' : '投稿する'}
+            </button>
+          </div>
         </div>
       </header>
 
@@ -160,68 +210,26 @@ export default function NewThreadPage() {
 
           {/* エディター */}
           <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between px-1 mb-2">
-              <div className="flex gap-4">
-                <button
-                  type="button"
-                  onClick={() => insertTag('**', '**')}
-                  className="text-slate-500 hover:text-blue-500 transition-colors"
-                  title="太字"
-                >
-                  <span className="material-symbols-outlined">format_bold</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => insertTag('*', '*')}
-                  className="text-slate-500 hover:text-blue-500 transition-colors"
-                  title="斜体"
-                >
-                  <span className="material-symbols-outlined">format_italic</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => insertTag('`', '`')}
-                  className="text-slate-500 hover:text-blue-500 transition-colors"
-                  title="コード"
-                >
-                  <span className="material-symbols-outlined">code</span>
-                </button>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-[10px] font-bold text-slate-500 tracking-tighter">
-                  プレビュー表示
-                </span>
-                <label className="relative flex h-5 w-9 cursor-pointer items-center rounded-full bg-slate-200 dark:bg-slate-800 p-1 has-[:checked]:bg-blue-600">
-                  <input
-                    type="checkbox"
-                    className="sr-only peer"
-                    checked={showPreview}
-                    onChange={(e) => setShowPreview(e.target.checked)}
-                  />
-                  <div className="h-3 w-3 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-4" />
-                </label>
-              </div>
-            </div>
+            <div className="relative bg-c-surface2 border border-c-border rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-c-accent/50 transition-all">
+              <textarea
+                ref={contentRef}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                onInput={handleContentInput}
 
-            <div className="relative bg-c-surface2 border border-c-border rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-blue-600/50 transition-all">
-              {showPreview ? (
-                <div className="w-full min-h-[400px] p-6 text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-wrap text-base">
-                  {content || <span className="text-slate-400">プレビューがここに表示されます</span>}
-                </div>
-              ) : (
-                <textarea
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  maxLength={board?.defaultMaxPostLength ?? 2000}
-                  className="w-full min-h-[400px] bg-transparent border-none p-6 text-base focus:ring-0 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 resize-none leading-relaxed"
-                  placeholder="本文を入力してください... (Markdown形式が利用可能です。画像はURLを直接貼り付けてください)"
-                />
-              )}
+                className="w-full min-h-[12rem] bg-transparent border-none p-6 text-base focus:ring-0 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 resize-none leading-relaxed overflow-y-auto"
+                style={{ maxHeight: '50vh' }}
+                placeholder="本文を入力してください..."
+              />
             </div>
-
-            <div className="flex items-center gap-2 px-1 text-[10px] text-slate-500 uppercase tracking-tight">
-              <span className="material-symbols-outlined text-sm">info</span>
-              <span>画像は外部サービスのURLを貼り付けると自動的に展開されます</span>
+            {/* 画像プレビュー（最大2行、縦スクロール） */}
+            <ContentPreview content={content} className="px-1 max-h-[15rem]" />
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-2 text-[10px] text-slate-500 uppercase tracking-tight">
+                <span className="material-symbols-outlined text-sm">info</span>
+                <span>画像は外部サービスのURLを貼り付けると自動的に展開されます</span>
+              </div>
+              <ImageUploadButton onUploaded={handleImageUploaded} />
             </div>
           </div>
 
@@ -251,7 +259,7 @@ export default function NewThreadPage() {
           type="button"
           onClick={handleSubmit}
           disabled={mutation.isPending || !title.trim() || !content.trim()}
-          className="w-full flex cursor-pointer items-center justify-center rounded-xl h-12 bg-blue-600 text-white text-base font-bold shadow-lg shadow-blue-600/20 disabled:opacity-50"
+          className="w-full flex cursor-pointer items-center justify-center rounded-xl h-12 bg-c-accent text-[var(--c-accent-text)] text-base font-bold shadow-lg disabled:opacity-50"
         >
           {mutation.isPending ? '投稿中...' : '投稿する'}
         </button>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import type { Post } from '../../api/types'
 import { fullDateTime } from '../../utils/formatDate'
 import { tokenizeContent, parseAnchorsFromContent } from '../../utils/anchorParse'
@@ -20,21 +20,25 @@ interface PostArticleProps {
   idCount: number
   handlers: PostHandlers
   isInPopup?: boolean
+  isOwnPost?: boolean
+  isReplyToOwn?: boolean
+  compact?: boolean
+  showTopDivider?: boolean
 }
 
 const LINK_COLORS = {
-  image: 'text-orange-400 hover:text-orange-300',
-  twitter: 'text-sky-400 hover:text-sky-300',
-  youtube: 'text-red-400 hover:text-red-300',
-  url: 'text-blue-400 hover:text-blue-300',
+  image:   'text-c-link-image hover:text-c-link-image-hover',
+  twitter: 'text-c-link-twitter hover:text-c-link-twitter-hover',
+  youtube: 'text-c-link-youtube hover:text-c-link-youtube-hover',
+  url:     'text-c-link-url hover:text-c-link-url-hover',
 } as const
 
 function idColorClass(count: number): string {
-  if (count >= 7) return 'text-red-500 font-bold'
-  if (count >= 5) return 'text-orange-500 font-bold'
-  if (count >= 3) return 'text-amber-500'
-  if (count === 1) return 'text-slate-600'
-  return 'text-slate-400'
+  if (count >= 7) return 'text-c-id-very-hot font-bold'
+  if (count >= 5) return 'text-c-id-hot font-bold'
+  if (count >= 3) return 'text-c-id-warm'
+  if (count === 1) return 'text-c-id-first'
+  return 'text-c-id-default'
 }
 
 export default function PostArticle({
@@ -43,9 +47,14 @@ export default function PostArticle({
   idCount,
   handlers,
   isInPopup,
+  isOwnPost = false,
+  isReplyToOwn = false,
+  compact = false,
+  showTopDivider = false,
 }: PostArticleProps) {
   const [lightboxImages, setLightboxImages] = useState<string[]>([])
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+  const lbTouchStartXRef = useRef<number | null>(null)
 
   const lbNext = () =>
     setLightboxIndex((prev) =>
@@ -67,6 +76,38 @@ export default function PostArticle({
     return () => window.removeEventListener('keydown', onKey)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lightboxIndex, lightboxImages.length])
+
+  // 半角スペース・タブ・全角スペースが5文字以上連続していればAAと判定
+  const isAAContent = /[ \t\u3000]{5,}/i.test(post.content)
+
+  const aaRef = useRef<HTMLParagraphElement>(null)
+
+  // AA表示: PC は横スクロール、スマホ (compact) はフォントサイズ縮小して収める
+  useLayoutEffect(() => {
+    if (!isAAContent) return
+    const p = aaRef.current
+    if (!p) return
+    p.style.fontSize = ''
+    p.style.whiteSpace = 'pre'
+    p.style.overflowWrap = ''
+    p.style.overflowX = ''
+    const containerWidth = (p.parentElement?.clientWidth ?? 0) - 4
+    if (containerWidth <= 0 || p.scrollWidth <= containerWidth) return
+    if (!compact) {
+      // PC: 横スクロール
+      p.style.overflowX = 'auto'
+      return
+    }
+    // スマホ: フォントサイズ縮小
+    const base = parseFloat(getComputedStyle(p).fontSize)
+    const newSize = Math.max(1, Math.floor(base * (containerWidth / p.scrollWidth)))
+    if (newSize < base) p.style.fontSize = `${newSize}px`
+    // それでも収まらなければ折り返しにフォールバック
+    if (p.scrollWidth > containerWidth) {
+      p.style.whiteSpace = 'pre-wrap'
+      p.style.overflowWrap = 'break-word'
+    }
+  }, [isAAContent, post.content, compact])
 
   const isDeleted = post.content.startsWith('\x00') || post.content === '[削除済み]'
   const numHeat = heatClass(anchorCount)
@@ -102,7 +143,7 @@ export default function PostArticle({
         <button
           key={i}
           type="button"
-          className="text-blue-400 hover:text-blue-300 hover:underline text-sm"
+          className="text-c-anchor hover:text-c-anchor-hover hover:underline text-sm"
           onClick={(e) => handleAnchorClick(part.numbers, e)}
         >
           {part.raw}
@@ -123,6 +164,13 @@ export default function PostArticle({
         </a>
       )
     }
+    if (part.type === 'emoji') {
+      return (
+        <span key={i} className="emoji">
+          {part.text}
+        </span>
+      )
+    }
     return (
       <span key={i} className={bodyTextClass}>
         {part.text}
@@ -130,14 +178,24 @@ export default function PostArticle({
     )
   })
 
+  const articleBg = isOwnPost
+    ? 'var(--c-own-tint)'
+    : isReplyToOwn
+      ? 'var(--c-reply-tint)'
+      : undefined
+
   return (
-    <article className="w-full" id={isInPopup ? undefined : `post-${post.postNumber}`}>
+    <article
+      className={`w-full ${showTopDivider ? 'border-t border-c-border pt-2' : ''} ${(isOwnPost || isReplyToOwn) ? 'px-2 py-1' : ''}`}
+      style={articleBg ? { background: articleBg } : undefined}
+      id={isInPopup ? undefined : `post-${post.postNumber}`}
+    >
       {/* ヘッダー */}
-      <div className="flex items-center gap-3 mb-2 flex-wrap">
+      <div className={`flex items-center mb-1 flex-nowrap overflow-hidden ${compact ? 'gap-1' : 'gap-3'}`}>
         {/* レス番号バッジ */}
         <button
           type="button"
-          className={`font-bold text-sm flex items-center gap-1 ${numHeat || 'text-blue-400'} ${anchorCount > 0 ? 'hover:opacity-80' : 'cursor-default'}`}
+          className={`font-bold ${compact ? 'text-xs' : 'text-sm'} flex items-center gap-1 ${numHeat || 'text-blue-400'} ${anchorCount > 0 ? 'hover:opacity-80' : 'cursor-default'}`}
           onClick={anchorCount > 0 ? (e) => handlers.onBadgeClick(post.postNumber, getTriggerY(e)) : undefined}
         >
           <span>{post.postNumber}</span>
@@ -149,22 +207,22 @@ export default function PostArticle({
         {/* 投稿者名 */}
         <button
           type="button"
-          className="font-bold text-green-500 text-xs hover:text-green-400"
+          className={`font-bold text-c-poster-name ${compact ? 'text-[10px]' : 'text-xs'} hover:text-c-poster-name-hover`}
           onClick={(e) => handlers.onNameClick(post.posterName, getTriggerY(e))}
         >
           {post.posterName}
         </button>
 
         {post.posterSubInfo && (
-          <span className="text-xs text-slate-500">{post.posterSubInfo}</span>
+          <span className={`${compact ? 'text-[10px]' : 'text-xs'} text-slate-500`}>{post.posterSubInfo}</span>
         )}
-        <span className="text-xs text-slate-500">{fullDateTime(post.createdAt)}</span>
+        <span className={`${compact ? 'text-[10px]' : 'text-xs'} text-slate-500`}>{fullDateTime(post.createdAt, compact)}</span>
 
         {/* ID */}
         {post.displayUserId && (
           <button
             type="button"
-            className={`text-xs font-mono flex items-center gap-0.5 hover:opacity-80 ${idColorClass(idCount)}`}
+            className={`${compact ? 'text-[10px]' : 'text-xs'} font-mono flex items-center gap-0.5 hover:opacity-80 ${idColorClass(idCount)}`}
             onClick={(e) => handlers.onIdClick(post.displayUserId, getTriggerY(e))}
           >
             <span>ID:{post.displayUserId}</span>
@@ -175,7 +233,7 @@ export default function PostArticle({
         {/* 返信ボタン */}
         <button
           type="button"
-          className="text-xs text-slate-500 dark:text-slate-600 bg-slate-100 dark:bg-slate-800/50 px-1.5 py-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-300 transition-colors ml-auto"
+          className={`${compact ? 'text-[10px]' : 'text-xs'} text-slate-500 dark:text-slate-600 bg-slate-100 dark:bg-slate-800/50 px-1.5 py-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-300 transition-colors ml-auto`}
           onClick={() => handlers.onReply(post.postNumber)}
         >
           返信
@@ -184,18 +242,21 @@ export default function PostArticle({
 
       {/* 本文 */}
       <div
-        className={`${
-          post.postNumber === 1
-            ? 'bg-slate-100/50 dark:bg-slate-800/20 rounded-xl p-5 border border-c-border'
-            : 'pl-4 border-l-2 border-c-border ml-1'
+        className={`ml-1 ${
+          isOwnPost ? 'pl-[13px] border-l-[3px] border-c-accent'
+          : isReplyToOwn ? 'pl-[13px] border-l-[3px] border-[var(--c-reply-line)]'
+          : 'pl-4 border-l-2 border-c-border'
         } ${hasConnections ? 'cursor-pointer' : ''}`}
         onClick={handleBodyClick}
       >
-        <p className="leading-relaxed whitespace-pre-wrap text-sm">{renderedContent}</p>
+        <p
+          ref={isAAContent ? aaRef : null}
+          className={`text-sm ${isAAContent ? 'aa-font whitespace-pre' : 'whitespace-pre-wrap break-words leading-relaxed'}`}
+        >{renderedContent}</p>
 
         {/* サムネイル */}
         {(imageUrls.length > 0 || youtubeItems.length > 0) && (
-          <div className="mt-4 pt-4 border-t border-c-border flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-wrap gap-2">
             {imageUrls.map((url, i) => (
               <button
                 key={i}
@@ -270,6 +331,23 @@ export default function PostArticle({
         <div
           className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center"
           onClick={() => setLightboxIndex(null)}
+          onTouchStart={(e) => {
+            e.stopPropagation()
+            lbTouchStartXRef.current = e.touches[0].clientX
+          }}
+          onTouchEnd={(e) => {
+            e.stopPropagation()
+            e.preventDefault()
+            if (lbTouchStartXRef.current === null) return
+            const dx = e.changedTouches[0].clientX - lbTouchStartXRef.current
+            lbTouchStartXRef.current = null
+            if (Math.abs(dx) < 20) {
+              setLightboxIndex(null)
+              return
+            }
+            if (dx > 0) lbPrev()
+            else lbNext()
+          }}
           onWheel={(e) => {
             if (lightboxImages.length <= 1) return
             e.deltaY > 0 ? lbNext() : lbPrev()
@@ -283,34 +361,16 @@ export default function PostArticle({
             <span className="material-symbols-outlined text-3xl">close</span>
           </button>
 
-          {/* 画像 + 左右ボタンをまとめたコンテナ */}
+          {/* 画像コンテナ（左右ボタンなし・スワイプ/スクロールのみ） */}
           <div
-            className="relative inline-flex items-stretch"
+            className="relative inline-flex items-center"
             onClick={(e) => e.stopPropagation()}
           >
-            {lightboxImages.length > 1 && (
-              <button
-                type="button"
-                className="flex items-center justify-center w-16 bg-black/40 hover:bg-black/70 text-white transition-colors"
-                onClick={(e) => { e.stopPropagation(); lbPrev() }}
-              >
-                <span className="material-symbols-outlined text-6xl">chevron_left</span>
-              </button>
-            )}
             <img
               src={lightboxImages[lightboxIndex]}
               alt="expanded"
-              className="max-w-[80vw] max-h-[90vh] object-contain block"
+              className="max-w-[100vw] max-h-[100vh] object-contain block"
             />
-            {lightboxImages.length > 1 && (
-              <button
-                type="button"
-                className="flex items-center justify-center w-16 bg-black/40 hover:bg-black/70 text-white transition-colors"
-                onClick={(e) => { e.stopPropagation(); lbNext() }}
-              >
-                <span className="material-symbols-outlined text-6xl">chevron_right</span>
-              </button>
-            )}
           </div>
         </div>
       )}

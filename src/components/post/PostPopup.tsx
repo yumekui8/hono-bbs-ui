@@ -10,8 +10,6 @@ export interface PopupEntry {
   triggerY: number
 }
 
-const HEADER_HEIGHT = 64
-
 interface PopupWindowProps {
   entry: PopupEntry
   stackIndex: number
@@ -19,6 +17,10 @@ interface PopupWindowProps {
   anchorCountMap: Map<number, number>
   idCountMap: Map<string, number>
   handlers: PostHandlers
+  hideTitle?: boolean
+  compact?: boolean
+  isTop: boolean
+  onCloseAll: () => void
 }
 
 function PopupWindow({
@@ -28,6 +30,10 @@ function PopupWindow({
   anchorCountMap,
   idCountMap,
   handlers,
+  hideTitle,
+  compact,
+  isTop,
+  onCloseAll,
 }: PopupWindowProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [style, setStyle] = useState<React.CSSProperties>({
@@ -45,8 +51,9 @@ function PopupWindow({
     const height = el.scrollHeight
     const left = containerRect ? containerRect.left : window.innerWidth / 2 - Math.min(600, window.innerWidth - 32) / 2
     const width = containerRect ? containerRect.width : Math.min(600, window.innerWidth - 32)
-    const spaceAbove = entry.triggerY - HEADER_HEIGHT
-    const maxScreenHeight = window.innerHeight * 0.9
+    const minTop = containerRect ? containerRect.top : 64
+    const maxAvailableHeight = containerRect ? containerRect.height * 0.95 : window.innerHeight * 0.85
+    const spaceAbove = entry.triggerY - minTop
 
     let top: number
     let maxHeight: string
@@ -54,8 +61,8 @@ function PopupWindow({
       top = entry.triggerY - height
       maxHeight = `${spaceAbove}px`
     } else {
-      top = HEADER_HEIGHT
-      maxHeight = `${maxScreenHeight}px`
+      top = minTop
+      maxHeight = `${maxAvailableHeight}px`
     }
 
     setStyle({
@@ -68,25 +75,55 @@ function PopupWindow({
       maxHeight,
       overflowY: 'auto',
       zIndex: 9001 + stackIndex,
+      // 最前面以外はタッチ・クリックを透過して背面オーバーレイに届かせる
+      pointerEvents: isTop ? 'auto' : 'none',
     })
-  }, [entry.triggerY, entry.posts, containerRect, stackIndex])
+  }, [entry.triggerY, entry.posts, containerRect, stackIndex, isTop])
+
+  // タッチスワイプ検出（水平スワイプ → 全ポップアップ閉じる）
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null)
+
+  function handleTouchStart(e: React.TouchEvent) {
+    e.stopPropagation()
+    touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+  }
+
+  function handleTouchMove(e: React.TouchEvent) {
+    e.stopPropagation()
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    e.stopPropagation()
+    if (!touchStartRef.current) return
+    const dx = e.changedTouches[0].clientX - touchStartRef.current.x
+    const dy = e.changedTouches[0].clientY - touchStartRef.current.y
+    touchStartRef.current = null
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      onCloseAll()
+    }
+  }
 
   return (
     <div
       ref={ref}
-      className="bg-c-surface border border-c-border rounded-xl shadow-2xl custom-scrollbar"
-      style={style}
+      className="bg-c-surface border-2 rounded-xl shadow-2xl custom-scrollbar"
+      style={{ ...style, borderColor: 'var(--c-accent)' }}
       onWheel={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     >
-      <div className="px-4 py-3 border-b border-c-border sticky top-0 bg-c-surface z-10">
-        <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{entry.title}</span>
-      </div>
-      <div className="p-4 space-y-4">
+      {!hideTitle && (
+        <div className="px-4 py-3 border-b border-c-border sticky top-0 bg-c-surface z-10">
+          <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{entry.title}</span>
+        </div>
+      )}
+      <div className={compact ? 'px-1 py-1 space-y-2' : 'p-4 space-y-4'}>
         {entry.posts.length === 0 ? (
           <p className="text-slate-500 text-sm text-center py-4">投稿が見つかりません</p>
         ) : (
-          entry.posts.map((post) => (
+          entry.posts.map((post, index) => (
             <PostArticle
               key={post.id}
               post={post}
@@ -94,6 +131,8 @@ function PopupWindow({
               idCount={idCountMap.get(post.displayUserId) ?? 1}
               handlers={handlers}
               isInPopup
+              compact={compact}
+              showTopDivider={index > 0}
             />
           ))
         )}
@@ -110,6 +149,8 @@ interface PostPopupProps {
   handlers: PostHandlers
   onCloseTop: () => void
   onCloseAll: () => void
+  hideTitle?: boolean
+  compact?: boolean
 }
 
 export default function PostPopup({
@@ -120,7 +161,32 @@ export default function PostPopup({
   handlers,
   onCloseTop,
   onCloseAll,
+  hideTitle,
+  compact,
 }: PostPopupProps) {
+  // オーバーレイ背面のタッチスワイプ検出
+  const overlayTouchStartRef = useRef<{ x: number; y: number } | null>(null)
+
+  function handleOverlayTouchStart(e: React.TouchEvent) {
+    e.stopPropagation()
+    overlayTouchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+  }
+
+  function handleOverlayTouchMove(e: React.TouchEvent) {
+    e.stopPropagation()
+  }
+
+  function handleOverlayTouchEnd(e: React.TouchEvent) {
+    e.stopPropagation()
+    if (!overlayTouchStartRef.current) return
+    const dx = e.changedTouches[0].clientX - overlayTouchStartRef.current.x
+    const dy = e.changedTouches[0].clientY - overlayTouchStartRef.current.y
+    overlayTouchStartRef.current = null
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      onCloseAll()
+    }
+  }
+
   if (popups.length === 0) return null
 
   return createPortal(
@@ -129,6 +195,9 @@ export default function PostPopup({
       style={{ zIndex: 9000 }}
       onClick={onCloseTop}
       onWheel={() => onCloseAll()}
+      onTouchStart={handleOverlayTouchStart}
+      onTouchMove={handleOverlayTouchMove}
+      onTouchEnd={handleOverlayTouchEnd}
     >
       {popups.map((entry, index) => (
         <PopupWindow
@@ -139,6 +208,10 @@ export default function PostPopup({
           anchorCountMap={anchorCountMap}
           idCountMap={idCountMap}
           handlers={handlers}
+          hideTitle={hideTitle}
+          compact={compact}
+          isTop={index === popups.length - 1}
+          onCloseAll={onCloseAll}
         />
       ))}
     </div>,

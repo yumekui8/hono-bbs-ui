@@ -1,5 +1,5 @@
 import { apiFetch } from './client'
-import type { LoginResponse, TurnstileResponse, ApiResponse } from './types'
+import type { LoginResponse, TurnstileResponse, Profile, ApiResponse } from './types'
 
 export async function postTurnstile(token: string) {
   return apiFetch<ApiResponse<TurnstileResponse>>('/auth/turnstile', {
@@ -20,5 +20,19 @@ export async function postLogout() {
   return apiFetch<void>('/auth/logout', {
     method: 'POST',
     requiresSession: true,
+  })
+}
+
+export interface RegisterInput {
+  id: string
+  displayName: string
+  password: string
+}
+
+export async function postRegister(input: RegisterInput) {
+  return apiFetch<ApiResponse<Profile>>('/identity/users', {
+    method: 'POST',
+    body: input,
+    requiresTurnstile: true,
   })
 }
