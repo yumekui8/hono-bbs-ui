@@ -11,12 +11,24 @@ export interface UpdateProfileInput {
   displayName?: string
   bio?: string | null
   email?: string | null
-  currentPassword?: string
-  newPassword?: string
 }
 
 export async function updateProfile(input: UpdateProfileInput) {
   return apiFetch<ApiResponse<Profile>>('/profile', {
+    method: 'PUT',
+    body: input,
+    requiresTurnstile: true,
+    requiresSession: true,
+  })
+}
+
+export interface UpdatePasswordInput {
+  currentPassword: string
+  newPassword: string
+}
+
+export async function updatePassword(input: UpdatePasswordInput) {
+  return apiFetch<void>('/profile/password', {
     method: 'PUT',
     body: input,
     requiresTurnstile: true,

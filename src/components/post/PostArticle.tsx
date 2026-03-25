@@ -213,19 +213,19 @@ export default function PostArticle({
           {post.posterName}
         </button>
 
-        {post.posterSubInfo && (
-          <span className={`${compact ? 'text-[10px]' : 'text-xs'} text-slate-500`}>{post.posterSubInfo}</span>
+        {post.posterOptionInfo && (
+          <span className={`${compact ? 'text-[10px]' : 'text-xs'} text-slate-500`}>{post.posterOptionInfo}</span>
         )}
         <span className={`${compact ? 'text-[10px]' : 'text-xs'} text-slate-500`}>{fullDateTime(post.createdAt, compact)}</span>
 
         {/* ID */}
-        {post.displayUserId && (
+        {post.authorId && (
           <button
             type="button"
             className={`${compact ? 'text-[10px]' : 'text-xs'} font-mono flex items-center gap-0.5 hover:opacity-80 ${idColorClass(idCount)}`}
-            onClick={(e) => handlers.onIdClick(post.displayUserId, getTriggerY(e))}
+            onClick={(e) => handlers.onIdClick(post.authorId, getTriggerY(e))}
           >
-            <span>ID:{post.displayUserId}</span>
+            <span>ID:{post.authorId}</span>
             {idCount >= 2 && <span className="text-xs">({idCount})</span>}
           </button>
         )}

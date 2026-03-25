@@ -155,7 +155,7 @@ export default function ReplyForm({
       createPost(boardId, threadId, {
         content,
         ...(posterName.trim() ? { posterName: posterName.trim() } : {}),
-        ...(subInfo.trim() ? { posterSubInfo: subInfo.trim() } : {}),
+        ...(subInfo.trim() ? { posterOptionInfo: subInfo.trim() } : {}),
       }),
     onSuccess: (res) => {
       recordPost({

@@ -5,8 +5,8 @@ export interface ApiResponse<T> {
 }
 
 export interface EndpointMeta {
-  ownerUserId: string | null
-  ownerGroupId: string | null
+  administrators: string
+  members: string
   permissions: string
 }
 
@@ -26,8 +26,8 @@ export type IdFormat =
 
 export interface Board {
   id: string
-  ownerUserId: string | null
-  ownerGroupId: string | null
+  administrators: string
+  members: string
   permissions: string
   name: string
   description: string | null
@@ -37,13 +37,15 @@ export interface Board {
   defaultMaxPostLength: number
   defaultMaxPostLines: number
   defaultMaxPosterNameLength: number
-  defaultMaxPosterSubInfoLength: number
-  defaultMaxPosterMetaInfoLength: number
+  defaultMaxPosterOptionLength: number
   defaultPosterName: string
   defaultIdFormat: IdFormat
-  defaultThreadOwnerUserId: string | null
-  defaultThreadOwnerGroupId: string | null
+  defaultThreadAdministrators: string
+  defaultThreadMembers: string
   defaultThreadPermissions: string
+  defaultPostAdministrators: string
+  defaultPostMembers: string
+  defaultPostPermissions: string
   category: string | null
   createdAt: string
   adminMeta?: AdminMeta
@@ -53,19 +55,20 @@ export interface Board {
 export interface Thread {
   id: string
   boardId: string
-  ownerUserId: string | null
-  ownerGroupId: string | null
+  administrators: string
+  members: string
   permissions: string
   title: string
   maxPosts: number | null
   maxPostLength: number | null
   maxPostLines: number | null
   maxPosterNameLength: number | null
-  maxPosterSubInfoLength: number | null
-  maxPosterMetaInfoLength: number | null
+  maxPosterOptionLength: number | null
   posterName: string | null
   idFormat: IdFormat | null
   postCount: number
+  isEdited: boolean
+  editedAt: string | null
   createdAt: string
   updatedAt: string
   firstPost?: Post
@@ -77,14 +80,16 @@ export interface Post {
   id: string
   threadId: string
   postNumber: number
-  ownerUserId: string | null
-  ownerGroupId: string | null
+  administrators: string
+  members: string
   permissions: string
-  userId: string | null
-  displayUserId: string
+  authorId: string
   posterName: string
-  posterSubInfo: string | null
+  posterOptionInfo: string
   content: string
+  isDeleted: boolean
+  isEdited: boolean
+  editedAt: string | null
   createdAt: string
   adminMeta?: AdminMeta
 }
@@ -103,7 +108,7 @@ export interface Profile {
   bio: string | null
   email: string | null
   isActive: boolean
-  primaryGroupId: string | null
+  primaryRoleId: string | null
   createdAt: string
   updatedAt: string
 }

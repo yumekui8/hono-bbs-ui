@@ -33,7 +33,7 @@ export function filterThreads(threads: Thread[], ng: NgWords): Thread[] {
 
 export function filterPosts(posts: Post[], ng: NgWords): Post[] {
   return posts.filter((p) => {
-    if (matchesNg(p.displayUserId, ng.posterId, false)) return false
+    if (matchesNg(p.authorId, ng.posterId, false)) return false
     if (matchesNg(p.posterName, ng.posterName, false)) return false
     if (matchesNg(p.content, ng.content, ng.contentRegex)) return false
     return true

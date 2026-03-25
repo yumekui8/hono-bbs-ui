@@ -33,7 +33,7 @@ export default function ThreadCard({ thread, isActive, isSelected, onClick, comp
     : null
   const hasThumbnail = thumbnailUrl !== null || videoId !== null
 
-  const creatorId = thread.firstPost?.displayUserId ?? null
+  const creatorId = thread.firstPost?.authorId ?? null
 
   const momentumClass =
     momentumLevel === 3

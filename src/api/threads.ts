@@ -5,7 +5,7 @@ export interface CreateThreadInput {
   title: string
   content: string
   posterName?: string
-  posterSubInfo?: string
+  posterOptionInfo?: string
 }
 
 export async function createThread(boardId: string, input: CreateThreadInput) {
@@ -18,9 +18,7 @@ export async function createThread(boardId: string, input: CreateThreadInput) {
 
 export interface UpdateThreadInput {
   title?: string
-  maxPosts?: number | null
-  posterName?: string | null
-  idFormat?: string | null
+  posterName?: string
 }
 
 export async function updateThread(boardId: string, threadId: string, input: UpdateThreadInput) {
@@ -28,6 +26,7 @@ export async function updateThread(boardId: string, threadId: string, input: Upd
     method: 'PUT',
     body: input,
     requiresTurnstile: true,
+    requiresSession: true,
   })
 }
 

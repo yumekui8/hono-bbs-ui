@@ -54,7 +54,7 @@ export default function NewThreadPage() {
       title,
       content,
       ...(defaultPosterName.trim() ? { posterName: defaultPosterName.trim() } : {}),
-      ...(defaultSubInfo.trim() ? { posterSubInfo: defaultSubInfo.trim() } : {}),
+      ...(defaultSubInfo.trim() ? { posterOptionInfo: defaultSubInfo.trim() } : {}),
     }),
     onSuccess: (res) => {
       recordPost({

@@ -629,7 +629,7 @@ function MobileThreadViewInner({
               <PostArticle
                 post={post}
                 anchorCount={anchorCountMap.get(post.postNumber) ?? 0}
-                idCount={idCountMap.get(post.displayUserId) ?? 1}
+                idCount={idCountMap.get(post.authorId) ?? 1}
                 handlers={handlers}
                 isOwnPost={ownPostNumbers.has(post.postNumber)}
                 isReplyToOwn={replyToOwnNumbers.has(post.postNumber)}

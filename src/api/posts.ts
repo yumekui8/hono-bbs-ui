@@ -8,7 +8,7 @@ export async function getThreadPosts(boardId: string, threadId: string) {
 export interface CreatePostInput {
   content: string
   posterName?: string
-  posterSubInfo?: string
+  posterOptionInfo?: string
 }
 
 export async function createPost(boardId: string, threadId: string, input: CreatePostInput) {
@@ -21,7 +21,7 @@ export async function createPost(boardId: string, threadId: string, input: Creat
 
 export async function softDeletePost(boardId: string, threadId: string, responseNumber: number) {
   return apiFetch<ApiResponse<Post>>(`/boards/${boardId}/${threadId}/${responseNumber}`, {
-    method: 'PUT',
+    method: 'DELETE',
     requiresTurnstile: true,
   })
 }

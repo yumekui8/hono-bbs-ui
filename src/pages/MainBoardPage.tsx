@@ -141,8 +141,8 @@ function ThreadView({ replyLayout }: ThreadViewProps) {
   const idCountMap = useMemo(() => {
     const map = new Map<string, number>()
     for (const post of posts) {
-      if (post.displayUserId) {
-        map.set(post.displayUserId, (map.get(post.displayUserId) ?? 0) + 1)
+      if (post.authorId) {
+        map.set(post.authorId, (map.get(post.authorId) ?? 0) + 1)
       }
     }
     return map
@@ -326,7 +326,7 @@ function ThreadView({ replyLayout }: ThreadViewProps) {
       })
     },
     onIdClick: (id, triggerY) => {
-      const idPosts = posts.filter((p) => p.displayUserId === id)
+      const idPosts = posts.filter((p) => p.authorId === id)
       openPopup({ title: `ID:${id} (${idPosts.length}件)`, posts: idPosts, triggerY })
     },
     onNameClick: (name, triggerY) => {
@@ -397,7 +397,7 @@ function ThreadView({ replyLayout }: ThreadViewProps) {
             <PostArticle
               post={post}
               anchorCount={anchorCountMap.get(post.postNumber) ?? 0}
-              idCount={idCountMap.get(post.displayUserId) ?? 1}
+              idCount={idCountMap.get(post.authorId) ?? 1}
               handlers={handlers}
               isOwnPost={ownPostNumbers.has(post.postNumber)}
               isReplyToOwn={replyToOwnNumbers.has(post.postNumber)}

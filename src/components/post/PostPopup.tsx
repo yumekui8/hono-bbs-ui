@@ -128,7 +128,7 @@ function PopupWindow({
               key={post.id}
               post={post}
               anchorCount={anchorCountMap.get(post.postNumber) ?? 0}
-              idCount={idCountMap.get(post.displayUserId) ?? 1}
+              idCount={idCountMap.get(post.authorId) ?? 1}
               handlers={handlers}
               isInPopup
               compact={compact}

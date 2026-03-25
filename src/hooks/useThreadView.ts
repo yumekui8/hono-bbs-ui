@@ -115,8 +115,8 @@ export function useThreadView(
   const idCountMap = useMemo(() => {
     const map = new Map<string, number>()
     for (const post of posts) {
-      if (post.displayUserId)
-        map.set(post.displayUserId, (map.get(post.displayUserId) ?? 0) + 1)
+      if (post.authorId)
+        map.set(post.authorId, (map.get(post.authorId) ?? 0) + 1)
     }
     return map
   }, [posts])
@@ -295,7 +295,7 @@ export function useThreadView(
       })
     },
     onIdClick: (id, triggerY) => {
-      const idPosts = posts.filter((p) => p.displayUserId === id)
+      const idPosts = posts.filter((p) => p.authorId === id)
       openPopup({ title: `ID:${id} (${idPosts.length}件)`, posts: idPosts, triggerY })
     },
     onNameClick: (name, triggerY) => {
