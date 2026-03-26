@@ -5,6 +5,13 @@ import { useBoards } from '../../hooks/useBoards'
 import { useAuthStore } from '../../stores/authStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import LoginModal from '../auth/LoginModal'
+import { env } from '../../config/env'
+
+function appIconInitials(name: string): string {
+  const words = name.trim().split(/\s+/)
+  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase()
+  return name.slice(0, 2).toUpperCase()
+}
 
 interface MobileBoardDrawerProps {
   isOpen: boolean
@@ -59,12 +66,18 @@ export default function MobileBoardDrawer({
         {/* ヘッダー */}
         <div className="h-14 flex items-center px-4 gap-3 border-b border-c-border flex-shrink-0">
           <button
-            className="w-8 h-8 bg-c-accent rounded-lg flex items-center justify-center font-bold text-[var(--c-accent-text)] text-sm flex-shrink-0"
+            className="flex-shrink-0"
             onClick={() => { navigate('/'); onClose() }}
           >
-            AB
+            {env.appIcon ? (
+              <img src={env.appIcon} alt={env.appName} className="w-8 h-8 rounded-lg object-contain" />
+            ) : (
+              <div className="w-8 h-8 bg-c-accent rounded-lg flex items-center justify-center font-bold text-[var(--c-accent-text)] text-sm">
+                {appIconInitials(env.appName)}
+              </div>
+            )}
           </button>
-          <span className="font-bold text-slate-900 dark:text-white">AnonBoard</span>
+          <span className="font-bold text-slate-900 dark:text-white">{env.appName}</span>
         </div>
 
         {/* 板一覧 */}

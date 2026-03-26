@@ -4,6 +4,13 @@ import { useBoards } from '../../hooks/useBoards'
 import { useAuthStore } from '../../stores/authStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import LoginModal from '../auth/LoginModal'
+import { env } from '../../config/env'
+
+function appIconInitials(name: string): string {
+  const words = name.trim().split(/\s+/)
+  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase()
+  return name.slice(0, 2).toUpperCase()
+}
 
 function readSidebarCookie(): boolean {
   try {
@@ -43,12 +50,16 @@ export default function BoardSidebar() {
             onClick={() => navigate('/')}
             title="トップへ戻る"
           >
-            <div className="w-8 h-8 bg-c-accent rounded-lg flex-shrink-0 flex items-center justify-center font-bold text-[var(--c-accent-text)] text-sm">
-              AB
-            </div>
+            {env.appIcon ? (
+              <img src={env.appIcon} alt={env.appName} className="w-8 h-8 rounded-lg flex-shrink-0 object-contain" />
+            ) : (
+              <div className="w-8 h-8 bg-c-accent rounded-lg flex-shrink-0 flex items-center justify-center font-bold text-[var(--c-accent-text)] text-sm">
+                {appIconInitials(env.appName)}
+              </div>
+            )}
             {!collapsed && (
               <h1 className="font-bold text-lg tracking-tight truncate whitespace-nowrap text-slate-900 dark:text-white">
-                AnonBoard
+                {env.appName}
               </h1>
             )}
           </button>

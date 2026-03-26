@@ -4,6 +4,7 @@ import { fullDateTime } from '../../utils/formatDate'
 import { tokenizeContent, parseAnchorsFromContent } from '../../utils/anchorParse'
 import { extractMedia, getYouTubeVideoId } from '../../utils/urlExtract'
 import { heatClass } from '../../utils/heatColor'
+import { env } from '../../config/env'
 
 export interface PostHandlers {
   onAnchorClick: (numbers: number[], triggerY: number) => void
@@ -109,12 +110,15 @@ export default function PostArticle({
     }
   }, [isAAContent, post.content, compact])
 
-  const isDeleted = post.content.startsWith('\x00') || post.content === '[削除済み]'
+  const isDeleted = post.isDeleted || post.content.startsWith('\x00') || post.content === '[削除済み]'
+  const displayName = isDeleted && env.deletedPostName ? env.deletedPostName : post.posterName
+  const displayAuthorId = isDeleted && env.deletedPostId ? env.deletedPostId : post.authorId
+  const displayContent = isDeleted && env.deletedPostBody ? env.deletedPostBody : post.content
   const numHeat = heatClass(anchorCount)
   const outgoingAnchors = parseAnchorsFromContent(post.content)
   const hasConnections = outgoingAnchors.length > 0 || anchorCount > 0
 
-  const media = extractMedia(post.content)
+  const media = extractMedia(displayContent)
   const imageUrls = media.filter((m) => m.type === 'image').map((m) => m.url)
   const youtubeItems = media.filter((m) => m.type === 'youtube')
 
@@ -134,7 +138,7 @@ export default function PostArticle({
     handlers.onAnchorClick(numbers, (e.currentTarget as HTMLElement).getBoundingClientRect().top)
   }
 
-  const parts = tokenizeContent(post.content)
+  const parts = tokenizeContent(displayContent)
   const bodyTextClass = !isDeleted && anchorCount >= 3 ? numHeat : isDeleted ? 'text-slate-500 italic' : 'text-slate-700 dark:text-slate-300'
 
   const renderedContent = parts.map((part, i) => {
@@ -210,7 +214,7 @@ export default function PostArticle({
           className={`font-bold text-c-poster-name ${compact ? 'text-[10px]' : 'text-xs'} hover:text-c-poster-name-hover`}
           onClick={(e) => handlers.onNameClick(post.posterName, getTriggerY(e))}
         >
-          {post.posterName}
+          {displayName}
         </button>
 
         {post.posterOptionInfo && (
@@ -219,13 +223,13 @@ export default function PostArticle({
         <span className={`${compact ? 'text-[10px]' : 'text-xs'} text-slate-500`}>{fullDateTime(post.createdAt, compact)}</span>
 
         {/* ID */}
-        {post.authorId && (
+        {displayAuthorId && (
           <button
             type="button"
             className={`${compact ? 'text-[10px]' : 'text-xs'} font-mono flex items-center gap-0.5 hover:opacity-80 ${idColorClass(idCount)}`}
             onClick={(e) => handlers.onIdClick(post.authorId, getTriggerY(e))}
           >
-            <span>ID:{post.authorId}</span>
+            <span>ID:{displayAuthorId}</span>
             {idCount >= 2 && <span className="text-xs">({idCount})</span>}
           </button>
         )}
