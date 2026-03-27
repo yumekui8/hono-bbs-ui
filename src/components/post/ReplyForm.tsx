@@ -32,9 +32,9 @@ function TurnstileErrorMessage() {
         href={`${env.turnstileTokenUrl}?returnTo=${returnTo}`}
         className="underline font-medium hover:text-red-300"
       >
-        Turnstile
+        ここ
       </a>
-      セッションが必要です
+      からturnstileの設定をしてください
     </span>
   )
 }
@@ -270,7 +270,12 @@ export default function ReplyForm({
       {isTurnstileError && !env.disableTurnstile && env.turnstileTokenUrl ? (
         <TurnstileErrorMessage />
       ) : (
-        error
+        <>
+          {error}
+          {!env.disableTurnstile && env.turnstileTokenUrl && (
+            <span className="block mt-0.5"><TurnstileErrorMessage /></span>
+          )}
+        </>
       )}
     </div>
   )

@@ -183,12 +183,25 @@ export default function NewThreadPage() {
                     href={`${env.turnstileTokenUrl}?returnTo=${turnstileReturnTo}`}
                     className="underline font-medium hover:text-red-300"
                   >
-                    Turnstile
+                    ここ
                   </a>
-                  セッションが必要です
+                  からturnstileの設定をしてください
                 </span>
               ) : (
-                error
+                <>
+                  {error}
+                  {!env.disableTurnstile && env.turnstileTokenUrl && (
+                    <span className="block mt-1">
+                      <a
+                        href={`${env.turnstileTokenUrl}?returnTo=${turnstileReturnTo}`}
+                        className="underline font-medium hover:text-red-300"
+                      >
+                        ここ
+                      </a>
+                      からturnstileの設定をしてください
+                    </span>
+                  )}
+                </>
               )}
             </div>
           )}
