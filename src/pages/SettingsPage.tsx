@@ -9,6 +9,12 @@ import type { AccentColor, FontSize } from '../stores/settingsStore'
 import Toggle from '../components/ui/Toggle'
 import { useTurnstileStore } from '../stores/turnstileStore'
 import { env } from '../config/env'
+
+function appIconInitials(name: string): string {
+  const words = name.trim().split(/\s+/)
+  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase()
+  return name.slice(0, 2).toUpperCase()
+}
 import { getHistory, clearHistory } from '../utils/threadHistory'
 import { getPostHistory, clearPostHistory } from '../utils/postHistory'
 import { getImageHistory, removeImageFromHistory, clearImageHistory } from '../utils/imageHistory'
@@ -191,10 +197,14 @@ export default function SettingsPage() {
             onClick={() => navigate('/')}
             title="トップへ戻る"
           >
-            <div className="w-8 h-8 bg-c-accent rounded-lg flex items-center justify-center font-bold text-[var(--c-accent-text)] text-sm">
-              AB
-            </div>
-            <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">AnonBoard</span>
+            {env.appIcon ? (
+              <img src={env.appIcon} alt={env.appName} className="w-8 h-8 rounded-lg flex-shrink-0 object-contain" />
+            ) : (
+              <div className="w-8 h-8 bg-c-accent rounded-lg flex items-center justify-center font-bold text-[var(--c-accent-text)] text-sm">
+                {appIconInitials(env.appName)}
+              </div>
+            )}
+            <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">{env.appName}</span>
           </button>
         </div>
         <nav className="flex-1 overflow-y-auto custom-scrollbar py-4">

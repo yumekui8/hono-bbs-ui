@@ -4,6 +4,7 @@ import { useTurnstileStore } from './stores/turnstileStore'
 import { useSettingsStore } from './stores/settingsStore'
 import { ACCENT_MAP } from './theme/accentColors'
 import { useIsMobile } from './hooks/useIsMobile'
+import { env } from './config/env'
 import MainBoardPage from './pages/MainBoardPage'
 import MobileBoardPage from './pages/MobileBoardPage'
 import NewThreadPage from './pages/NewThreadPage'
@@ -28,6 +29,13 @@ function TurnstileHandler() {
   return null
 }
 
+
+// document.title と favicon を env から設定
+document.title = env.appName
+if (env.appFavicon) {
+  const link = document.querySelector<HTMLLinkElement>("link[rel='icon']")
+  if (link) link.href = env.appFavicon
+}
 
 const FONT_SIZES = [13, 14, 16, 18, 20]
 

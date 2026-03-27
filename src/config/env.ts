@@ -14,4 +14,5 @@ export const env = {
   // アプリブランディング
   appName: import.meta.env.VITE_APP_NAME ?? 'AnonBoard',
   appIcon: import.meta.env.VITE_APP_ICON ?? '',
+  appFavicon: import.meta.env.VITE_APP_FAVICON ?? '',
 } as const
