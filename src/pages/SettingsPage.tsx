@@ -33,9 +33,7 @@ export default function SettingsPage() {
   const clearSession = useAuthStore((s) => s.clearSession)
   const {
     theme,
-    safeSearch,
     ngWords,
-    notifications,
     historyMaxGenerations,
     postHistoryMaxGenerations,
     defaultPosterName,
@@ -44,9 +42,7 @@ export default function SettingsPage() {
     threadListRefreshInterval,
     hiddenBoardIds,
     setTheme,
-    setSafeSearch,
     setNgWords,
-    setNotification,
     setHistoryMaxGenerations,
     setPostHistoryMaxGenerations,
     setDefaultPosterName,
@@ -772,101 +768,48 @@ export default function SettingsPage() {
                 </div>
               </section>
 
-              {/* 外観・通知 */}
-              <section className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                {/* 外観 */}
-                <div className="space-y-6">
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-3">
-                    <span className="material-symbols-outlined text-c-accent">palette</span>
-                    外観
-                  </h3>
-                  <div className="bg-c-surface p-6 rounded-2xl border border-c-border space-y-6 shadow-lg shadow-black/5">
-                    <div>
-                      <p className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-4">テーマ</p>
-                      <div className="space-y-2">
-                        <div className="flex p-1 bg-slate-100 dark:bg-slate-900 rounded-xl border border-c-border">
-                          {(['light', 'dark', 'auto'] as const).map((t) => (
-                            <button
-                              key={t}
-                              type="button"
-                              onClick={() => setTheme(t)}
-                              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${
-                                theme === t
-                                  ? 'bg-c-accent text-[var(--c-accent-text)] shadow-lg'
-                                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                              }`}
-                            >
-                              {t === 'light' ? 'ライト' : t === 'dark' ? 'ダーク' : '自動'}
-                            </button>
-                          ))}
-                        </div>
-                        <div className="flex p-1 bg-slate-100 dark:bg-slate-900 rounded-xl border border-c-border">
-                          {(['light-gray', 'gray', 'dark-gray'] as const).map((t) => (
-                            <button
-                              key={t}
-                              type="button"
-                              onClick={() => setTheme(t)}
-                              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${
-                                theme === t
-                                  ? 'bg-c-accent text-[var(--c-accent-text)] shadow-lg'
-                                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                              }`}
-                            >
-                              {t === 'light-gray' ? 'ライトグレー' : t === 'gray' ? 'グレー' : 'ダークグレー'}
-                            </button>
-                          ))}
-                        </div>
+              {/* 外観 */}
+              <section className="space-y-6">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-3">
+                  <span className="material-symbols-outlined text-c-accent">palette</span>
+                  外観
+                </h3>
+                <div className="bg-c-surface p-6 rounded-2xl border border-c-border space-y-6 shadow-lg shadow-black/5">
+                  <div>
+                    <p className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-4">テーマ</p>
+                    <div className="space-y-2">
+                      <div className="flex p-1 bg-slate-100 dark:bg-slate-900 rounded-xl border border-c-border">
+                        {(['light', 'dark', 'auto'] as const).map((t) => (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() => setTheme(t)}
+                            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${
+                              theme === t
+                                ? 'bg-c-accent text-[var(--c-accent-text)] shadow-lg'
+                                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                            }`}
+                          >
+                            {t === 'light' ? 'ライト' : t === 'dark' ? 'ダーク' : '自動'}
+                          </button>
+                        ))}
                       </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-bold text-slate-700 dark:text-slate-300">セーフサーチ</p>
-                        <p className="text-[10px] text-slate-500">不適切なコンテンツを非表示にする</p>
+                      <div className="flex p-1 bg-slate-100 dark:bg-slate-900 rounded-xl border border-c-border">
+                        {(['light-gray', 'gray', 'dark-gray'] as const).map((t) => (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() => setTheme(t)}
+                            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${
+                              theme === t
+                                ? 'bg-c-accent text-[var(--c-accent-text)] shadow-lg'
+                                : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                            }`}
+                          >
+                            {t === 'light-gray' ? 'ライトグレー' : t === 'gray' ? 'グレー' : 'ダークグレー'}
+                          </button>
+                        ))}
                       </div>
-                      <Toggle checked={safeSearch} onChange={setSafeSearch} />
-                    </div>
-                  </div>
-                </div>
-
-                {/* 通知 */}
-                <div className="space-y-6">
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-3">
-                    <span className="material-symbols-outlined text-c-accent">notifications</span>
-                    通知設定
-                  </h3>
-                  <div className="bg-c-surface p-6 rounded-2xl border border-c-border space-y-4 shadow-lg shadow-black/5">
-                    <div className="flex items-center justify-between group">
-                      <span className="text-sm text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
-                        自分の投稿へのレス
-                      </span>
-                      <input
-                        type="checkbox"
-                        checked={notifications.ownPostReply}
-                        onChange={(e) => setNotification('ownPostReply', e.target.checked)}
-                        className="w-5 h-5 rounded border-c-border bg-c-surface2 text-c-accent focus:ring-c-accent/50"
-                      />
-                    </div>
-                    <div className="flex items-center justify-between group">
-                      <span className="text-sm text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
-                        ダイレクトメッセージ
-                      </span>
-                      <input
-                        type="checkbox"
-                        checked={notifications.directMessage}
-                        onChange={(e) => setNotification('directMessage', e.target.checked)}
-                        className="w-5 h-5 rounded border-c-border bg-c-surface2 text-c-accent focus:ring-c-accent/50"
-                      />
-                    </div>
-                    <div className="flex items-center justify-between group">
-                      <span className="text-sm text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
-                        運営からのお知らせ
-                      </span>
-                      <input
-                        type="checkbox"
-                        checked={notifications.announcement}
-                        onChange={(e) => setNotification('announcement', e.target.checked)}
-                        className="w-5 h-5 rounded border-c-border bg-c-surface2 text-c-accent focus:ring-c-accent/50"
-                      />
                     </div>
                   </div>
                 </div>
